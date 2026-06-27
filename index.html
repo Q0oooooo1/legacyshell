@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Legacy Shell</title>
+  <style>
+    @font-face {
+      font-family: 'MS Sans Serif';
+      src: local('MS Sans Serif'), local('Tahoma'), local('Arial');
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-user-select: none;
+      user-select: none;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+      shape-rendering: crispEdges;
+      -webkit-font-smoothing: none;
+      -moz-osx-font-smoothing: grayscale;
+      font-smooth: never;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      touch-action: none;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      font-size: 11px;
+    }
+
+    /* BOOT SCREEN */
+    #boot-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      z-index: 10000;
+      padding: 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      overflow: hidden;
+      color: #fff;
+    }
+
+    .boot-line {
+      margin: 1px 0;
+      line-height: 1.3;
+    }
+
+    .text-white { color: #fff; }
+    .text-red { color: #ff0000; }
+    .text-green { color: #00ff00; }
+    .text-blue { color: #5555ff; }
+    .text-yellow { color: #ffff00; }
+
+    /* DESKTOP */
+    #desktop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: calc(100% - 32px);
+      background: #000;
+      z-index: 1;
+    }
+
+    /* TASKBAR */
+    #taskbar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 32px;
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    #start-button {
+      height: 26px;
+      padding: 0 8px;
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 11px;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+    }
+
+    #start-button:active, #start-button.pressed {
+      border-top: 2px solid #404040;
+      border-left: 2px solid #404040;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+    }
+
+    .taskbar-item {
+      height: 24px;
+      padding: 0 6px;
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .taskbar-item.active {
+      border-top: 2px solid #404040;
+      border-left: 2px solid #404040;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      background: #a8a8a8;
+    }
+
+    /* START MENU */
+    #start-menu {
+      position: fixed;
+      bottom: 32px;
+      left: 0;
+      width: 220px;
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      z-index: 9998;
+      display: none;
+      box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+
+    #start-menu.show {
+      display: block;
+    }
+
+    .start-menu-header {
+      background: linear-gradient(to right, #000080, #1084d0);
+      color: #fff;
+      padding: 6px 8px;
+      font-weight: bold;
+      font-size: 12px;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .start-menu-items {
+      padding: 2px;
+    }
+
+    .start-menu-item {
+      padding: 6px 8px;
+      cursor: pointer;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      position: relative;
+    }
+
+    .start-menu-item:hover {
+      background: #000080;
+      color: #fff;
+    }
+
+    .start-menu-item.has-submenu::after {
+      content: '▶';
+      position: absolute;
+      right: 8px;
+      font-size: 9px;
+    }
+
+    .start-menu-divider {
+      height: 2px;
+      border-top: 1px solid #808080;
+      border-bottom: 1px solid #fff;
+      margin: 4px 2px;
+    }
+
+    /* SUBMENU */
+    .submenu {
+      position: absolute;
+      left: 100%;
+      top: 0;
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      min-width: 160px;
+      display: none;
+      z-index: 10000;
+    }
+
+    .start-menu-item:hover .submenu {
+      display: block;
+    }
+
+    .submenu-item {
+      padding: 5px 8px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      white-space: nowrap;
+    }
+
+    .submenu-item:hover {
+      background: #000080;
+      color: #fff;
+    }
+
+    /* WINDOWS 95 STYLE WINDOW */
+    .window {
+      position: absolute;
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      min-width: 200px;
+      min-height: 150px;
+      display: flex;
+      flex-direction: column;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      font-size: 11px;
+    }
+
+    .window-titlebar {
+      background: #000080;
+      color: #fff;
+      padding: 2px 3px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: move;
+      font-weight: bold;
+      font-size: 11px;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    .window-titlebar.inactive {
+      background: #808080;
+    }
+
+    .window-title-text {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      pointer-events: none;
+    }
+
+    .window-buttons {
+      display: flex;
+      gap: 2px;
+    }
+
+    .window-btn {
+      width: 16px;
+      height: 14px;
+      background: #c0c0c0;
+      border-top: 1px solid #fff;
+      border-left: 1px solid #fff;
+      border-right: 1px solid #404040;
+      border-bottom: 1px solid #404040;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 10px;
+      line-height: 1;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      color: #000;
+    }
+
+    .window-btn:active {
+      border-top: 1px solid #404040;
+      border-left: 1px solid #404040;
+      border-right: 1px solid #fff;
+      border-bottom: 1px solid #fff;
+    }
+
+    .window-menubar {
+      background: #c0c0c0;
+      padding: 2px 4px;
+      display: flex;
+      gap: 12px;
+      border-bottom: 1px solid #808080;
+      font-size: 11px;
+    }
+
+    .window-menubar span {
+      cursor: pointer;
+      padding: 1px 4px;
+    }
+
+    .window-menubar span:hover {
+      background: #000080;
+      color: #fff;
+    }
+
+    .window-content {
+      flex: 1;
+      padding: 8px;
+      overflow: auto;
+      background: #c0c0c0;
+    }
+
+    /* TERMINAL */
+    .terminal {
+      background: #000;
+      color: #c0c0c0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      padding: 4px;
+      height: 100%;
+      overflow-y: auto;
+      border-top: 2px solid #404040;
+      border-left: 2px solid #404040;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+    }
+
+    .terminal-line {
+      margin: 0;
+      line-height: 1.3;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .terminal-prompt {
+      color: #c0c0c0;
+    }
+
+    .terminal-input-line {
+      display: flex;
+      align-items: center;
+      margin-top: 2px;
+    }
+
+    .terminal-input {
+      background: transparent;
+      border: none;
+      color: #c0c0c0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      flex: 1;
+      outline: none;
+      caret-color: #c0c0c0;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    /* 3D BUTTONS */
+    .btn-3d {
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      padding: 4px 12px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      color: #000;
+    }
+
+    .btn-3d:active {
+      border-top: 2px solid #404040;
+      border-left: 2px solid #404040;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+    }
+
+    /* FILE MANAGER */
+    .file-list {
+      background: #fff;
+      border-top: 2px solid #404040;
+      border-left: 2px solid #404040;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      padding: 4px;
+      font-size: 11px;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      min-height: 150px;
+    }
+
+    .file-item {
+      padding: 2px 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #000;
+    }
+
+    .file-item:hover {
+      background: #000080;
+      color: #fff;
+    }
+
+    .file-icon {
+      font-size: 14px;
+    }
+
+    /* SETTINGS */
+    .settings-group {
+      margin-bottom: 12px;
+    }
+
+    .settings-label {
+      font-size: 11px;
+      margin-bottom: 4px;
+      font-weight: bold;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+    }
+
+    .settings-input {
+      width: 100%;
+      padding: 3px;
+      border-top: 2px solid #404040;
+      border-left: 2px solid #404040;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      font-size: 11px;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      background: #fff;
+    }
+
+    .settings-info-box {
+      font-size: 11px;
+      padding: 6px;
+      background: #fff;
+      border-top: 2px solid #404040;
+      border-left: 2px solid #404040;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      line-height: 1.5;
+    }
+
+    /* SCROLLBAR (Windows 95 style) */
+    ::-webkit-scrollbar {
+      width: 16px;
+      height: 16px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #c0c0c0;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+    }
+
+    ::-webkit-scrollbar-button {
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Resize handle */
+    .resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 14px;
+      height: 14px;
+      cursor: nwse-resize;
+      background: linear-gradient(135deg, transparent 50%, #808080 50%, #808080 60%, transparent 60%, transparent 70%, #808080 70%, #808080 80%, transparent 80%, transparent 90%, #808080 90%);
+    }
+
+    /* Shutdown screen */
+    #shutdown-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      color: #ff8800;
+      z-index: 100000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-family: 'MS Sans Serif', Tahoma, sans-serif;
+      font-size: 16px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #shutdown-screen.show {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BOOT SCREEN -->
+  <div id="boot-screen"></div>
+
+  <!-- SHUTDOWN SCREEN -->
+  <div id="shutdown-screen">
+    <div>
+      <div style="margin-bottom: 20px; color: #ff8800;">It's now safe to turn off<br>your computer.</div>
+      <div style="font-size: 11px; color: #888;">Click to power on</div>
+    </div>
+  </div>
+
+  <!-- DESKTOP -->
+  <div id="desktop"></div>
+
+  <!-- TASKBAR -->
+  <div id="taskbar">
+    <div id="start-button">
+      <span style="font-size: 14px;">🪟</span>
+      <span>Start</span>
+    </div>
+    <div id="taskbar-items" style="display: flex; gap: 2px; flex: 1;"></div>
+    <div id="clock" style="padding: 0 8px; font-size: 11px; border-top: 2px solid #404040; border-left: 2px solid #404040; border-right: 2px solid #fff; border-bottom: 2px solid #fff; height: 24px; display: flex; align-items: center; font-family: 'MS Sans Serif', Tahoma, sans-serif;"></div>
+  </div>
+
+  <!-- START MENU -->
+  <div id="start-menu">
+    <div class="start-menu-header">
+      <span>🪟</span>
+      <span>Legacy Shell</span>
+    </div>
+    <div class="start-menu-items">
+      <div class="start-menu-item" onclick="openTerminal(); toggleStartMenu();">
+        <span>💻</span>
+        <span>Terminal</span>
+      </div>
+      <div class="start-menu-item" onclick="openFileManager(); toggleStartMenu();">
+        <span>📁</span>
+        <span>File Manager</span>
+      </div>
+      <div class="start-menu-item" onclick="openSettings(); toggleStartMenu();">
+        <span>⚙️</span>
+        <span>Settings</span>
+      </div>
+      <div class="start-menu-divider"></div>
+      <div class="start-menu-item has-submenu">
+        <span>🔌</span>
+        <span>Shut Down...</span>
+        <div class="submenu">
+          <div class="submenu-item" onclick="sleep(); toggleStartMenu();">Sleep</div>
+          <div class="submenu-item" onclick="shutdown(); toggleStartMenu();">Shut Down</div>
+          <div class="submenu-item" onclick="restart(); toggleStartMenu();">Restart</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// === 30 FPS SYSTEM-WIDE ===
+const TARGET_FPS = 30;
+const FRAME_TIME = 1000 / TARGET_FPS;
+let lastFrameTime = 0;
+
+function requestFrame(callback) {
+  function frame(timestamp) {
+    if (timestamp - lastFrameTime >= FRAME_TIME) {
+      callback(timestamp);
+      lastFrameTime = timestamp;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// === BOOT SEQUENCE ===
+const bootLines = [
+  {text: "Legacy Shell BIOS v1.0", color: "text-white", delay: 150},
+  {text: "Copyright (C) 2026 Legacy Systems", color: "text-white", delay: 150},
+  {text: "", color: "", delay: 100},
+  {text: "Initializing hardware...", color: "text-yellow", delay: 200},
+  {text: "CPU: Intel 80486 DX2 @ 66MHz", color: "text-white", delay: 200},
+  {text: "Memory Test: 640K OK", color: "text-green", delay: 250},
+  {text: "Extended Memory: 16384K OK", color: "text-green", delay: 250},
+  {text: "", color: "", delay: 100},
+  {text: "Detecting drives...", color: "text-blue", delay: 300},
+  {text: "  Primary Master: QUANTUM FIREBALL 540MB", color: "text-white", delay: 200},
+  {text: "  Primary Slave: None", color: "text-white", delay: 150},
+  {text: "  Secondary Master: CD-ROM", color: "text-white", delay: 150},
+  {text: "", color: "", delay: 100},
+  {text: "Loading kernel...", color: "text-blue", delay: 400},
+  {text: "[OK] Loading core modules", color: "text-green", delay: 200},
+  {text: "[OK] Initializing video driver (VGA)", color: "text-green", delay: 250},
+  {text: "[OK] Loading filesystem (FAT16)", color: "text-green", delay: 250},
+  {text: "[OK] Mounting C:\\", color: "text-green", delay: 200},
+  {text: "[OK] Loading device drivers", color: "text-green", delay: 300},
+  {text: "", color: "", delay: 100},
+  {text: "Starting system services...", color: "text-yellow", delay: 300},
+  {text: " * Starting window manager", color: "text-white", delay: 250},
+  {text: " * Loading GUI components", color: "text-white", delay: 250},
+  {text: " * Initializing input devices", color: "text-white", delay: 250},
+  {text: " * Starting network services", color: "text-white", delay: 250},
+  {text: "", color: "", delay: 100},
+  {text: "Checking filesystem...", color: "text-blue", delay: 300},
+  {text: "C:\\: clean, 234/512000 files", color: "text-white", delay: 250},
+  {text: "", color: "", delay: 100},
+  {text: "ERROR: Sound card not detected", color: "text-red", delay: 200},
+  {text: "WARNING: Low memory", color: "text-yellow", delay: 200},
+  {text: "", color: "", delay: 100},
+  {text: "Starting Legacy Shell...", color: "text-yellow", delay: 400},
+  {text: "Welcome to Legacy Shell", color: "text-green", delay: 300},
+  {text: "", color: "", delay: 200}
+];
+
+let bootIndex = 0;
+const bootScreen = document.getElementById('boot-screen');
+
+function addBootLine(line) {
+  const div = document.createElement('div');
+  div.className = `boot-line ${line.color}`;
+  div.textContent = line.text;
+  bootScreen.appendChild(div);
+  bootScreen.scrollTop = bootScreen.scrollHeight;
+}
+
+function runBootSequence() {
+  if (bootIndex < bootLines.length) {
+    const line = bootLines[bootIndex];
+    setTimeout(() => {
+      addBootLine(line);
+      bootIndex++;
+      runBootSequence();
+    }, line.delay);
+  } else {
+    setTimeout(() => {
+      bootScreen.style.display = 'none';
+      openTerminal();
+    }, 500);
+  }
+}
+
+setTimeout(runBootSequence, 100);
+
+// === WINDOW SYSTEM ===
+let windowId = 0;
+let activeWindow = null;
+let windows = {};
+let zIndex = 100;
+
+function createWindow(title, content, width = 400, height = 300) {
+  const id = ++windowId;
+  const win = document.createElement('div');
+  win.className = 'window';
+  win.id = `window-${id}`;
+  win.style.width = width + 'px';
+  win.style.height = height + 'px';
+  win.style.left = (30 + (id * 15)) + 'px';
+  win.style.top = (30 + (id * 15)) + 'px';
+  win.style.zIndex = ++zIndex;
+
+  win.innerHTML = `
+    <div class="window-titlebar" data-window-id="${id}">
+      <div class="window-title-text">
+        <span>${title}</span>
+      </div>
+      <div class="window-buttons">
+        <div class="window-btn" data-action="minimize" data-window-id="${id}">_</div>
+        <div class="window-btn" data-action="maximize" data-window-id="${id}">□</div>
+        <div class="window-btn" data-action="close" data-window-id="${id}">×</div>
+      </div>
+    </div>
+    <div class="window-content">${content}</div>
+    <div class="resize-handle" data-window-id="${id}"></div>
+  `;
+
+  document.getElementById('desktop').appendChild(win);
+  windows[id] = {
+    element: win,
+    minimized: false,
+    maximized: false,
+    prevBounds: null,
+    title: title
+  };
+
+  addToTaskbar(id, title);
+  focusWindow(id);
+
+  // Setup titlebar drag
+  const titlebar = win.querySelector('.window-titlebar');
+  titlebar.addEventListener('mousedown', (e) => startDrag(e, id));
+  titlebar.addEventListener('touchstart', (e) => startDragTouch(e, id), {passive: false});
+
+  // Setup buttons
+  win.querySelectorAll('.window-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      const winId = parseInt(btn.dataset.windowId);
+      if (action === 'minimize') minimizeWindow(winId);
+      else if (action === 'maximize') maximizeWindow(winId);
+      else if (action === 'close') closeWindow(winId);
+    });
+  });
+
+  // Setup resize
+  const resizeHandle = win.querySelector('.resize-handle');
+  resizeHandle.addEventListener('mousedown', (e) => startResize(e, id));
+  resizeHandle.addEventListener('touchstart', (e) => startResizeTouch(e, id), {passive: false});
+
+  // Focus on click
+  win.addEventListener('mousedown', () => focusWindow(id));
+  win.addEventListener('touchstart', () => focusWindow(id));
+
+  return id;
+}
+
+function closeWindow(id) {
+  if (windows[id]) {
+    windows[id].element.remove();
+    delete windows[id];
+    removeFromTaskbar(id);
+  }
+}
+
+function minimizeWindow(id) {
+  if (windows[id]) {
+    windows[id].minimized = true;
+    windows[id].element.style.display = 'none';
+    updateTaskbarItem(id);
+  }
+}
+
+function maximizeWindow(id) {
+  if (windows[id]) {
+    const win = windows[id];
+    if (!win.maximized) {
+      win.prevBounds = {
+        left: win.element.style.left,
+        top: win.element.style.top,
+        width: win.element.style.width,
+        height: win.element.style.height
+      };
+      win.element.style.left = '0';
+      win.element.style.top = '0';
+      win.element.style.width = '100%';
+      win.element.style.height = 'calc(100% - 32px)';
+      win.maximized = true;
+    } else {
+      win.element.style.left = win.prevBounds.left;
+      win.element.style.top = win.prevBounds.top;
+      win.element.style.width = win.prevBounds.width;
+      win.element.style.height = win.prevBounds.height;
+      win.maximized = false;
+    }
+  }
+}
+
+function focusWindow(id) {
+  if (windows[id] && !windows[id].minimized) {
+    windows[id].element.style.zIndex = ++zIndex;
+    activeWindow = id;
+
+    // Update titlebar colors
+    Object.keys(windows).forEach(wid => {
+      const tb = windows[wid].element.querySelector('.window-titlebar');
+      if (parseInt(wid) === id) {
+        tb.classList.remove('inactive');
+      } else {
+        tb.classList.add('inactive');
+      }
+    });
+
+    updateTaskbarItem(id);
+  }
+}
+
+// === DRAGGING (30 FPS) ===
+let dragWindow = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let lastDragTime = 0;
+
+function startDrag(e, id) {
+  if (e.target.classList.contains('window-btn')) return;
+  if (windows[id].maximized) return;
+  dragWindow = id;
+  const rect = windows[id].element.getBoundingClientRect();
+  dragOffsetX = e.clientX - rect.left;
+  dragOffsetY = e.clientY - rect.top;
+  focusWindow(id);
+  e.preventDefault();
+
+  document.addEventListener('mousemove', drag);
+  document.addEventListener('mouseup', stopDrag);
+}
+
+function startDragTouch(e, id) {
+  if (e.target.classList.contains('window-btn')) return;
+  if (windows[id].maximized) return;
+  const touch = e.touches[0];
+  dragWindow = id;
+  const rect = windows[id].element.getBoundingClientRect();
+  dragOffsetX = touch.clientX - rect.left;
+  dragOffsetY = touch.clientY - rect.top;
+  focusWindow(id);
+  e.preventDefault();
+
+  document.addEventListener('touchmove', dragTouch, {passive: false});
+  document.addEventListener('touchend', stopDragTouch);
+}
+
+function drag(e) {
+  if (!dragWindow) return;
+  const now = Date.now();
+  if (now - lastDragTime < FRAME_TIME) return;
+  lastDragTime = now;
+
+  const win = windows[dragWindow];
+  const x = e.clientX - dragOffsetX;
+  const y = e.clientY - dragOffsetY;
+
+  win.element.style.left = x + 'px';
+  win.element.style.top = y + 'px';
+}
+
+function dragTouch(e) {
+  if (!dragWindow) return;
+  e.preventDefault();
+  const now = Date.now();
+  if (now - lastDragTime < FRAME_TIME) return;
+  lastDragTime = now;
+
+  const touch = e.touches[0];
+  const win = windows[dragWindow];
+  const x = touch.clientX - dragOffsetX;
+  const y = touch.clientY - dragOffsetY;
+
+  win.element.style.left = x + 'px';
+  win.element.style.top = y + 'px';
+}
+
+function stopDrag() {
+  dragWindow = null;
+  document.removeEventListener('mousemove', drag);
+  document.removeEventListener('mouseup', stopDrag);
+}
+
+function stopDragTouch() {
+  dragWindow = null;
+  document.removeEventListener('touchmove', dragTouch);
+  document.removeEventListener('touchend', stopDragTouch);
+}
+
+// === RESIZE ===
+let resizeWindow = null;
+let resizeStartX = 0;
+let resizeStartY = 0;
+let resizeStartW = 0;
+let resizeStartH = 0;
+
+function startResize(e, id) {
+  if (windows[id].maximized) return;
+  resizeWindow = id;
+  resizeStartX = e.clientX;
+  resizeStartY = e.clientY;
+  resizeStartW = windows[id].element.offsetWidth;
+  resizeStartH = windows[id].element.offsetHeight;
+  e.preventDefault();
+  e.stopPropagation();
+
+  document.addEventListener('mousemove', doResize);
+  document.addEventListener('mouseup', stopResize);
+}
+
+function startResizeTouch(e, id) {
+  if (windows[id].maximized) return;
+  const touch = e.touches[0];
+  resizeWindow = id;
+  resizeStartX = touch.clientX;
+  resizeStartY = touch.clientY;
+  resizeStartW = windows[id].element.offsetWidth;
+  resizeStartH = windows[id].element.offsetHeight;
+  e.preventDefault();
+  e.stopPropagation();
+
+  document.addEventListener('touchmove', doResizeTouch, {passive: false});
+  document.addEventListener('touchend', stopResizeTouch);
+}
+
+function doResize(e) {
+  if (!resizeWindow) return;
+  const dx = e.clientX - resizeStartX;
+  const dy = e.clientY - resizeStartY;
+  const win = windows[resizeWindow];
+  win.element.style.width = Math.max(200, resizeStartW + dx) + 'px';
+  win.element.style.height = Math.max(150, resizeStartH + dy) + 'px';
+}
+
+function doResizeTouch(e) {
+  if (!resizeWindow) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  const dx = touch.clientX - resizeStartX;
+  const dy = touch.clientY - resizeStartY;
+  const win = windows[resizeWindow];
+  win.element.style.width = Math.max(200, resizeStartW + dx) + 'px';
+  win.element.style.height = Math.max(150, resizeStartH + dy) + 'px';
+}
+
+function stopResize() {
+  resizeWindow = null;
+  document.removeEventListener('mousemove', doResize);
+  document.removeEventListener('mouseup', stopResize);
+}
+
+function stopResizeTouch() {
+  resizeWindow = null;
+  document.removeEventListener('touchmove', doResizeTouch);
+  document.removeEventListener('touchend', stopResizeTouch);
+}
+
+// === TASKBAR ===
+function addToTaskbar(id, title) {
+  const item = document.createElement('div');
+  item.className = 'taskbar-item active';
+  item.id = `taskbar-${id}`;
+  item.textContent = title;
+  item.onclick = () => {
+    if (windows[id].minimized) {
+      windows[id].minimized = false;
+      windows[id].element.style.display = 'flex';
+      focusWindow(id);
+    } else if (activeWindow === id) {
+      minimizeWindow(id);
+    } else {
+      focusWindow(id);
+    }
+  };
+  document.getElementById('taskbar-items').appendChild(item);
+}
+
+function removeFromTaskbar(id) {
+  const item = document.getElementById(`taskbar-${id}`);
+  if (item) item.remove();
+}
+
+function updateTaskbarItem(id) {
+  Object.keys(windows).forEach(wid => {
+    const item = document.getElementById(`taskbar-${wid}`);
+    if (item) {
+      if (parseInt(wid) === id && !windows[wid].minimized) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    }
+  });
+}
+
+// === START MENU ===
+function toggleStartMenu() {
+  const menu = document.getElementById('start-menu');
+  const btn = document.getElementById('start-button');
+  menu.classList.toggle('show');
+  if (menu.classList.contains('show')) {
+    btn.classList.add('pressed');
+  } else {
+    btn.classList.remove('pressed');
+  }
+}
+
+document.getElementById('start-button').addEventListener('click', toggleStartMenu);
+
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('start-menu');
+  const startBtn = document.getElementById('start-button');
+  if (!menu.contains(e.target) && !startBtn.contains(e.target)) {
+    menu.classList.remove('show');
+    startBtn.classList.remove('pressed');
+  }
+});
+
+// === CLOCK ===
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('clock').textContent = `${h}:${m}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// === APPLICATIONS ===
+
+function openTerminal() {
+  const termId = 'term-' + (windowId + 1);
+  const content = `
+    <div class="terminal" id="${termId}">
+      <div class="terminal-line text-white">Legacy Shell [Version 1.0.0]</div>
+      <div class="terminal-line text-white">(c) 2026 Legacy Systems. All rights reserved.</div>
+      <div class="terminal-line"></div>
+      <div class="terminal-line text-yellow">Type 'help' for available commands.</div>
+      <div class="terminal-line"></div>
+      <div class="terminal-input-line">
+        <span class="terminal-prompt">C:\\&gt;</span>
+        <input type="text" class="terminal-input" id="${termId}-input" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+  `;
+
+  const id = createWindow('Terminal', content, 480, 320);
+
+  setTimeout(() => {
+    const input = document.getElementById(`${termId}-input`);
+    if (input) {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          processCommand(input.value, termId);
+          input.value = '';
+        }
+      });
+      input.focus();
+    }
+  }, 100);
+}
+
+function processCommand(cmd, termId) {
+  const terminal = document.getElementById(termId);
+  const cmdTrimmed = cmd.trim();
+
+  // Add command to terminal
+  const cmdLine = document.createElement('div');
+  cmdLine.className = 'terminal-line';
+  cmdLine.innerHTML = `<span class="terminal-prompt">C:\\&gt;</span> ${cmdTrimmed}`;
+  terminal.insertBefore(cmdLine, terminal.lastElementChild);
+
+  const cmdLower = cmdTrimmed.toLowerCase();
+  let output = '';
+  let color = 'text-white';
+
+  switch(cmdLower) {
+    case 'help':
+      output = `Available commands:
+  help          Show this help
+  cls, clear    Clear screen
+  ver           Show version
+  dir           List directory
+  cd [dir]      Change directory
+  mkdir [name]  Create directory
+  exit          Close terminal
+  settings      Open settings
+  filemgr       Open file manager
+  neofetch      System info
+  date          Show date/time
+  echo [text]   Print text
+  color [name]  Change text color`;
+      color = 'text-white';
+      break;
+    case 'cls':
+    case 'clear':
+      const lines = terminal.querySelectorAll('.terminal-line');
+      lines.forEach(line => line.remove());
+      return;
+    case 'ver':
+      output = 'Legacy Shell Version 1.0.0\nBuild 2026.06.28';
+      break;
+    case 'dir':
+      output = ` Volume in drive C is LEGACY
+ Directory of C:\\
+
+06/28/2026  09:14 PM    <DIR>          .
+06/28/2026  09:14 PM    <DIR>          ..
+06/28/2026  09:00 PM    <DIR>          home
+06/28/2026  09:00 PM    <DIR>          etc
+06/28/2026  09:00 PM    <DIR>          bin
+06/28/2026  09:00 PM    <DIR>          Documents
+               0 File(s)              0 bytes
+               6 Dir(s)   1,048,576 bytes free`;
+      break;
+    case 'neofetch':
+      output = `       ██╗    ██╗███████╗██╗      ██████╗ 
+       ██║    ██║██╔════╝██║     ██╔═══██╗
+       ██║ █╗ ██║█████╗  ██║     ██║   ██║
+       ██║███╗██║██══╝  ██║     ██║   ██║
+       ╚██████╔╝███████╗███████╗██████╝
+        ╚══╝╚══╝ ╚══════╝╚══════╝ ╚═════╝ 
+
+       OS: Legacy Shell
+       Host: Virtual Machine
+       Kernel: Legacy Kernel v1.0
+       Shell: legacy-sh
+       Resolution: ${window.innerWidth}x${window.innerHeight}
+       CPU: Intel 80486 DX2 @ 66MHz
+       Memory: 16384K / 65536K`;
+      color = 'text-green';
+      break;
+    case 'date':
+      output = new Date().toString();
+      break;
+    case 'settings':
+      output = 'Opening Settings...';
+      setTimeout(() => openSettings(), 100);
+      break;
+    case 'filemgr':
+      output = 'Opening File Manager...';
+      setTimeout(() => openFileManager(), 100);
+      break;
+    case 'exit':
+      const winId = Object.keys(windows).find(wid => windows[wid].element.querySelector(`#${termId}`));
+      if (winId) closeWindow(parseInt(winId));
+      return;
+    default:
+      if (cmdLower.startsWith('echo ')) {
+        output = cmdTrimmed.substring(5);
+      } else if (cmdLower.startsWith('cd ')) {
+        output = `Changed directory to ${cmdTrimmed.substring(3)}`;
+      } else if (cmdLower.startsWith('mkdir ')) {
+        output = `Created directory ${cmdTrimmed.substring(6)}`;
+      } else if (cmdLower.startsWith('color ')) {
+        const c = cmdTrimmed.substring(6).toLowerCase();
+        if (['red','green','blue','yellow','white'].includes(c)) {
+          output = `Color changed to ${c}`;
+          color = `text-${c}`;
+        } else {
+          output = 'Unknown color. Use: red, green, blue, yellow, white';
+          color = 'text-red';
+        }
+      } else if (cmdLower !== '') {
+        output = `Command not found: ${cmdTrimmed}`;
+        color = 'text-red';
+      }
+  }
+
+  if (output) {
+    const outLine = document.createElement('div');
+    outLine.className = `terminal-line ${color}`;
+    outLine.textContent = output;
+    terminal.insertBefore(outLine, terminal.lastElementChild);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+}
+
+function openFileManager() {
+  const content = `
+    <div style="font-size: 11px;">
+      <div style="margin-bottom: 6px; padding: 3px; background: #fff; border-top: 2px solid #404040; border-left: 2px solid #404040; border-right: 2px solid #fff; border-bottom: 2px solid #fff; font-family: 'MS Sans Serif', Tahoma, sans-serif;">
+        <strong>Address:</strong> C:\\
+      </div>
+      <div class="file-list">
+        <div class="file-item">
+          <span class="file-icon"></span>
+          <span>home</span>
+        </div>
+        <div class="file-item">
+          <span class="file-icon">📁</span>
+          <span>etc</span>
+        </div>
+        <div class="file-item">
+          <span class="file-icon">📁</span>
+          <span>bin</span>
+        </div>
+        <div class="file-item">
+          <span class="file-icon"></span>
+          <span>Documents</span>
+        </div>
+        <div class="file-item">
+          <span class="file-icon">📄</span>
+          <span>autoexec.bat</span>
+        </div>
+        <div class="file-item">
+          <span class="file-icon">📄</span>
+          <span>config.sys</span>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: #808080; font-family: 'MS Sans Serif', Tahoma, sans-serif;">
+        6 object(s)
+      </div>
+    </div>
+  `;
+
+  createWindow('File Manager - C:\\', content, 420, 320);
+}
+
+function openSettings() {
+  const content = `
+    <div class="settings-group">
+      <div class="settings-label">System Information</div>
+      <div class="settings-info-box">
+        <div>OS: Legacy Shell</div>
+        <div>CPU: Intel 80486 DX2 @ 66MHz</div>
+        <div>Memory: 16384K</div>
+        <div>Display: VGA 640x480</div>
+        <div>Build: 2026.06.28</div>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">Display Settings</div>
+      <select class="settings-input" style="margin-bottom: 6px;">
+        <option>640 x 480 (VGA)</option>
+        <option>800 x 600 (SVGA)</option>
+        <option>1024 x 768 (XGA)</option>
+      </select>
+      <button class="btn-3d" onclick="alert('Display settings applied')">Apply</button>
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">About</div>
+      <div class="settings-info-box">
+        <div>Legacy Shell</div>
+        <div>Version 1.0.0</div>
+        <div>Build 2026.06.28</div>
+        <div style="margin-top: 6px;">(c) 2026 Legacy Systems</div>
+      </div>
+    </div>
+  `;
+
+  createWindow('Settings', content, 320, 380);
+}
+
+// === SHUTDOWN OPTIONS ===
+function sleep() {
+  document.body.style.filter = 'brightness(0.1)';
+  setTimeout(() => {
+    alert('System is in sleep mode.\nClick OK to wake up.');
+    document.body.style.filter = 'brightness(1)';
+  }, 1000);
+}
+
+function shutdown() {
+  document.getElementById('shutdown-screen').classList.add('show');
+}
+
+function restart() {
+  if (confirm('Are you sure you want to restart?')) {
+    location.reload();
+  }
+}
+
+document.getElementById('shutdown-screen').addEventListener('click', () => {
+  document.getElementById('shutdown-screen').classList.remove('show');
+  location.reload();
+});
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+</script>
+
+</body>
+</html>
